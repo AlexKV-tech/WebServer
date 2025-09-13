@@ -1,0 +1,10 @@
+*
+
+!.gitignore
+!README.md
+!src/
+!include/
+!static/
+!scripts/
+!CMakeLists.txt
+!Dockerfile
