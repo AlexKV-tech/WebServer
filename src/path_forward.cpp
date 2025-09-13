@@ -6,7 +6,7 @@ PathForwarder::PathForwarder(const std::string& requested_address,
 {
 }
 PathForwarder::PathForwarder()
-    : routes({ { "/favicon.ico", "static/favicon.ico" } })
+    : routes({ { "favicon.ico", "static/favicon.ico" } })
 {
 }
 std::string PathForwarder::generateHttpResponse(const std::string& requested_path) const
