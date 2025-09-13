@@ -2,9 +2,21 @@
 
 !.gitignore
 !README.md
+
 !src/
+!src/*.cpp
+
 !include/
+!include/*.h
+
 !static/
-!scripts/
+!static/*.html
+!static/*.ico
+!static/*.css
+!static/*.js
+
+!scripts/**
+!scripts/*.sh
+
 !CMakeLists.txt
 !Dockerfile
