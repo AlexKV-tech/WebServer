@@ -44,7 +44,7 @@ void Server::run()
             if (connectionsPending()) {
                 handleEvents();
             }
-        } catch (std::runtime_error& err) {
+        } catch (std::exception& err) {
             std::cerr << err.what();
         }
     }
@@ -108,7 +108,7 @@ bool Server::connectionsPending() const
 {
     int pending = poll(const_cast<pollfd*>(poll_fds.data()), poll_fds.size(), 100);
     if (pending < 0)
-        throw std::runtime_error("Error during polling");
+        throw std::system_error(errno, std::system_category(), "Error during polling");
 
     return pending > 0;
 }
@@ -136,7 +136,7 @@ void Server::logConnection(const struct sockaddr_in& client_addr) const
               << std::endl;
 }
 
-bool Server::sendResponseToClient(const std::string& filename, size_t client_num) const
+bool Server::sendResponseToClient(const std::filesystem::path& filename, size_t client_num) const
 {
     if (client_num >= client_sockets.size())
         throw std::length_error("There is no client with such a number " + std::to_string(client_num));
@@ -159,21 +159,20 @@ std::string Server::receiveFromClient(size_t client_num)
                   << client_sockets[client_num]->getFd() << ")"
                   << std::endl;
         client_sockets.erase(client_sockets.begin() + client_num);
-        throw std::runtime_error(
+        throw std::system_error(errno, std::system_category(),
             std::format("Failed to fetch data from client {}", client_num));
     }
 
     return std::string(buffer);
 }
 
-void Server::setStaticFilesForwarding(const std::string& requested_path,
-    const std::string& response_path)
+void Server::setPathMapping(const std::filesystem::path& requested_path,
+    const std::filesystem::path& response_path)
 {
-    // if (!response_path.empty() && response_path[0] == '/')
-    //     response_path = response_path.substr(1, response_path.size() - 1);
     path_forwarder.addForwardingRule(requested_path, response_path);
 }
-void Server::setStaticFilesForwarding(const std::map<std::string, std::string>& routes)
+
+void Server::setPathMapping(const std::map<std::filesystem::path, std::filesystem::path>& routes)
 {
     path_forwarder.addForwardingRules(routes);
 }

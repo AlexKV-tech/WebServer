@@ -49,17 +49,17 @@ class PathForwarder {
         { ".ogg", "video/ogg" }
     };
 
-    std::unordered_map<std::string, std::string> routes;
+    std::unordered_map<std::filesystem::path, std::filesystem::path> routes;
 
 public:
-    PathForwarder(const std::string& requested_path,
-        const std::string& response_path);
+    PathForwarder(const std::filesystem::path& requested_path,
+        const std::filesystem::path& response_path);
     PathForwarder();
-    std::string generateHttpResponse(const std::string& requested_path) const;
-    void addForwardingRule(const std::string& requested_path,
-        const std::string& response_path);
-    void addForwardingRules(const std::map<std::string, std::string>& routes);
-    static std::string getContentTypeByPath(const std::string& path);
+    std::string generateHttpResponse(const std::filesystem::path& requested_path) const;
+    void addForwardingRule(const std::filesystem::path& requested_path,
+        const std::filesystem::path& response_path);
+    void addForwardingRules(const std::map<std::filesystem::path, std::filesystem::path>& routes);
+    static std::string getContentTypeByPath(const std::filesystem::path& path);
 };
 
 #endif

@@ -32,10 +32,47 @@ private:
 
 public:
     Server(int family, int connection_type);
+    /**
+     * @brief Starts the server
+     */
     void run();
-    void setStaticFilesForwarding(const std::string& requested_path,
-        const std::string& response_path);
-    void setStaticFilesForwarding(const std::map<std::string, std::string>& routes);
+    /**
+     * @brief Maps a single HTTP request path to a filesystem location
+     *
+     * Configures the server to serve a specific file when the given HTTP path
+     * is requested.
+     *
+     * @param requested_path HTTP request path (e.g., "/", "/about")
+     * @param response_path Filesystem path to the file to serve (e.g., "./static/index.html")
+     *
+     * @example
+     * @code
+     * server.setPathMapping("/", "/computer/project/static/index.html");
+     * server.setPathMapping("/favicon.ico", "./assets/favicon.ico");
+     * @endcode
+     */
+    void setPathMapping(const std::filesystem::path& requested_path,
+        const std::filesystem::path& response_path);
+    /**
+     * @brief Maps HTTP request paths to filesystem locations
+     *
+     * Configures the server to serve files by mapping HTTP request URLs
+     * to specific filesystem paths.
+     *
+     * @param routes Map where:
+     *               - Key: HTTP request path (e.g., "/", "/about")
+     *               - Value: Filesystem path (e.g., "./static/index.html")
+     *
+     * @example
+     * @code
+     * std::map<std::filesystem::path, std::filesystem::path> routes = {
+     *     {"/", "/computer/project/static/index.html"},
+     *     {"/about", "/computer/project/static/about.html"}
+     * };
+     * server.setFileRoutes(routes);
+     * @endcode
+     */
+    void setPathMapping(const std::map<std::filesystem::path, std::filesystem::path>& routes);
 
 private:
     void updatePollFds();
@@ -44,7 +81,7 @@ private:
     bool connectionsPending() const;
     void acceptConnection();
     void logConnection(const struct sockaddr_in& client_addr) const;
-    bool sendResponseToClient(const std::string& filename, size_t client_num) const;
+    bool sendResponseToClient(const std::filesystem::path& filename, size_t client_num) const;
     std::string receiveFromClient(size_t client_num);
     static std::string parseRequestPath(const std::string& http_request);
 };
