@@ -77,7 +77,7 @@ public:
 private:
     void updatePollFds();
     sockaddr_in generateLocalAddress() const;
-    void handleEvents();
+    void handleEvents(std::vector<size_t>& invalid_socket_indexes);
     bool connectionsPending() const;
     void acceptConnection();
     void logConnection(const struct sockaddr_in& client_addr) const;

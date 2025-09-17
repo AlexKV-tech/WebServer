@@ -42,7 +42,14 @@ void Server::run()
     while (true) {
         try {
             if (connectionsPending()) {
-                handleEvents();
+                std::vector<size_t> invalid_socket_indexes;
+                handleEvents(invalid_socket_indexes);
+                if (!invalid_socket_indexes.empty()) {
+                    for (size_t i : invalid_socket_indexes) {
+                        client_sockets.erase(client_sockets.begin() + i);
+                    }
+                    updatePollFds();
+                }
             }
         } catch (std::exception& err) {
             std::cerr << err.what();
@@ -50,7 +57,7 @@ void Server::run()
     }
 }
 
-void Server::handleEvents()
+void Server::handleEvents(std::vector<size_t>& invalid_socket_indexes)
 {
     for (size_t i = 0; i < poll_fds.size(); i++) {
         if (poll_fds[i].revents == 0)
@@ -63,9 +70,10 @@ void Server::handleEvents()
 
         if (revents & POLLHUP || revents & POLLNVAL || revents & POLLERR) {
             std::cerr << "Client disconnected (fd: " << fd << ")\n";
-            client_sockets.erase(client_sockets.begin() + (i - 1));
-            updatePollFds();
-            i--;
+            invalid_socket_indexes.push_back(i - 1);
+            // client_sockets.erase(client_sockets.begin() + (i - 1));
+            // updatePollFds();
+            // i--;
             continue;
         }
 
