@@ -1,12 +1,13 @@
 #include "server.h"
+#include "request.h"
+
 #include <algorithm>
-#include <thread>
+#include <utility>
 
 Server::Server(int family, int connection_type)
     : family(family)
     , connection_type(connection_type)
-    , listener(
-          std::make_unique<ListeningSocket>(family, connection_type))
+    , listener(std::make_unique<ListeningSocket>(family, connection_type))
     , path_forwarder()
 {
     listener->bindAddress(generateLocalAddress());
@@ -71,9 +72,6 @@ void Server::handleEvents(std::vector<size_t>& invalid_socket_indexes)
         if (revents & POLLHUP || revents & POLLNVAL || revents & POLLERR) {
             std::cerr << "Client disconnected (fd: " << fd << ")\n";
             invalid_socket_indexes.push_back(i - 1);
-            // client_sockets.erase(client_sockets.begin() + (i - 1));
-            // updatePollFds();
-            // i--;
             continue;
         }
 
@@ -82,41 +80,21 @@ void Server::handleEvents(std::vector<size_t>& invalid_socket_indexes)
             poll_fds[i].revents = 0;
         } else if (poll_fds[i].revents & POLLIN) {
             auto data = receiveFromClient(i - 1);
-            std::cout << data << '\n';
-            sendResponseToClient(parseRequestPath(data), i - 1);
+            std::cout << "{"
+                      << data << "}";
+            sendResponseToClient(HTTPRequest::parseMethodRequestPath(data, "GET"), i - 1);
+            std::cout << "POST: " << HTTPRequest::parseMethodRequestPath(data, "POST") << '\n';
             poll_fds[i].revents = 0;
         }
     }
-}
-
-std::string Server::parseRequestPath(const std::string& http_request)
-{
-    static const std::string HTTPMethodGET = "GET ";
-
-    size_t method_pos = http_request.find(HTTPMethodGET);
-    if (method_pos == std::string::npos)
-        return "";
-
-    size_t path_start = method_pos + HTTPMethodGET.length();
-    size_t path_end = http_request.find(' ', path_start);
-    if (path_end == std::string::npos)
-        return "";
-
-    std::string path = http_request.substr(path_start, path_end - path_start);
-
-    size_t last_slash = path.find_last_of('/');
-    path.erase(std::remove_if(path.begin(), path.end(), isspace), path.end());
-    if (last_slash != std::string::npos && last_slash + 1 < path.size()) {
-        return path.substr(last_slash + 1);
-    }
-    return path;
 }
 
 bool Server::connectionsPending() const
 {
     int pending = poll(const_cast<pollfd*>(poll_fds.data()), poll_fds.size(), 100);
     if (pending < 0)
-        throw std::system_error(errno, std::system_category(), "Error during polling");
+        throw std::system_error(errno, std::system_category(),
+            "Error during polling");
 
     return pending > 0;
 }
@@ -125,8 +103,7 @@ void Server::acceptConnection()
 {
     struct sockaddr_in client_addr {};
     std::unique_ptr<Socket> data_socket = std::make_unique<Socket>(
-        family, connection_type,
-        listener->acceptConnection(client_addr));
+        family, connection_type, listener->acceptConnection(client_addr));
 
     poll_fds.push_back({ data_socket->getFd(), POLLIN, 0 });
 
@@ -144,34 +121,47 @@ void Server::logConnection(const struct sockaddr_in& client_addr) const
               << std::endl;
 }
 
-bool Server::sendResponseToClient(const std::filesystem::path& filename, size_t client_num) const
+bool Server::sendResponseToClient(const std::filesystem::path& filename,
+    size_t client_num) const
 {
     if (client_num >= client_sockets.size())
         throw std::length_error("There is no client with such a number " + std::to_string(client_num));
 
     std::string response = path_forwarder.generateHttpResponse(filename);
 
-    return send(client_sockets[client_num]->getFd(), response.c_str(), response.size(), 0) >= 0;
+    return send(client_sockets[client_num]->getFd(), response.c_str(),
+               response.size(), 0)
+        >= 0;
 }
+
 std::string Server::receiveFromClient(size_t client_num)
 {
-    if (client_num >= client_sockets.size()) {
+
+    if (client_num >= client_sockets.size())
         throw std::length_error("There is no client with such a number " + std::to_string(client_num));
-    }
 
+    int client_fd = client_sockets[client_num]->getFd();
+    std::string request;
     char buffer[BufferSize];
-    ssize_t bytes_read = recv(client_sockets[client_num]->getFd(),
-        buffer, sizeof(buffer), 0);
+    auto [bytes_read, header_end] = HTTPRequest::readHeader(client_fd, buffer, request);
+
+    // Check for errors/premature disconnection after header reading
     if (bytes_read < 0) {
-        std::cerr << "Connection closed (fd: "
-                  << client_sockets[client_num]->getFd() << ")"
-                  << std::endl;
+        std::cerr << "Connection closed (fd: " << client_fd << ")" << std::endl;
         client_sockets.erase(client_sockets.begin() + client_num);
-        throw std::system_error(errno, std::system_category(),
+        throw std::system_error(
+            errno, std::system_category(),
             std::format("Failed to fetch data from client {}", client_num));
+    } else if (bytes_read == 0 && request.empty()) {
+        std::cerr << "Connection closed by client (fd: " << client_fd << ")" << std::endl;
+        client_sockets.erase(client_sockets.begin() + client_num);
+        throw std::runtime_error("Client closed connection before sending any data");
     }
 
-    return std::string(buffer);
+    if (header_end != std::string::npos)
+        HTTPRequest::readBody(client_fd, buffer, request, header_end);
+
+    return request;
 }
 
 void Server::setPathMapping(const std::filesystem::path& requested_path,
@@ -180,7 +170,8 @@ void Server::setPathMapping(const std::filesystem::path& requested_path,
     path_forwarder.addForwardingRule(requested_path, response_path);
 }
 
-void Server::setPathMapping(const std::map<std::filesystem::path, std::filesystem::path>& routes)
+void Server::setPathMapping(
+    const std::map<std::filesystem::path, std::filesystem::path>& routes)
 {
     path_forwarder.addForwardingRules(routes);
 }

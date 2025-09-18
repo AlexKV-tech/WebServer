@@ -33,6 +33,7 @@
 
 <body>
     <div class="clock" id="clock">--:--:--</div>
+
     <script>
         function updateClock() {
             const now = new Date();
@@ -44,6 +45,14 @@
         setInterval(updateClock, 1);
         updateClock();
     </script>
-</body>
+    <form method="POST">
+        <div>
+            <label for=" uname">Choose a username: </label>
+            <input type="text" id="uname" name="name" placeholder="Lower case, all one word" />
+        </div>
+        <div>
+            <button>Submit</button>
+        </div>
+    </form>
 
 </html>

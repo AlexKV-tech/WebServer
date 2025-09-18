@@ -13,7 +13,6 @@
 #include <iostream>
 #include <map>
 #include <memory>
-#include <thread>
 #include <vector>
 
 class Server {
@@ -26,7 +25,7 @@ private:
     std::vector<pollfd> poll_fds;
     static constexpr int ListenerPort = 7777;
     static constexpr int Connections = 100;
-    static constexpr size_t BufferSize = 8192;
+    static constexpr size_t BufferSize = 16384;
 
     PathForwarder path_forwarder;
 
@@ -43,7 +42,8 @@ public:
      * is requested.
      *
      * @param requested_path HTTP request path (e.g., "/", "/about")
-     * @param response_path Filesystem path to the file to serve (e.g., "./static/index.html")
+     * @param response_path Filesystem path to the file to serve (e.g.,
+     * "./static/index.html")
      *
      * @example
      * @code
@@ -72,7 +72,8 @@ public:
      * server.setFileRoutes(routes);
      * @endcode
      */
-    void setPathMapping(const std::map<std::filesystem::path, std::filesystem::path>& routes);
+    void setPathMapping(
+        const std::map<std::filesystem::path, std::filesystem::path>& routes);
 
 private:
     void updatePollFds();
@@ -81,9 +82,9 @@ private:
     bool connectionsPending() const;
     void acceptConnection();
     void logConnection(const struct sockaddr_in& client_addr) const;
-    bool sendResponseToClient(const std::filesystem::path& filename, size_t client_num) const;
+    bool sendResponseToClient(const std::filesystem::path& filename,
+        size_t client_num) const;
     std::string receiveFromClient(size_t client_num);
-    static std::string parseRequestPath(const std::string& http_request);
 };
 
 #endif
