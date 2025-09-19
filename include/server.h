@@ -5,14 +5,10 @@
 #include "socket.h"
 
 #include <arpa/inet.h>
-#include <poll.h>
-
-#include <chrono>
 #include <ctime>
-#include <format>
-#include <iostream>
 #include <map>
 #include <memory>
+#include <poll.h>
 #include <vector>
 
 class Server {

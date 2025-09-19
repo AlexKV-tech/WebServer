@@ -1,15 +1,12 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
+#include <cassert>
+#include <cstring>
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
-
-#include <cassert>
-#include <cstring>
-#include <iostream>
-#include <stdexcept>
 
 class Socket {
 protected:

@@ -1,9 +1,6 @@
 #ifndef REQUEST_H
 #define REQUEST_H
 
-#include <algorithm>
-#include <iostream>
-#include <stdexcept>
 #include <string>
 #include <sys/socket.h>
 

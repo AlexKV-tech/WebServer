@@ -1,5 +1,7 @@
 #include "socket.h"
 
+#include <system_error>
+
 Socket::Socket(int family, int type, int fd)
     : family(family)
     , type(type)

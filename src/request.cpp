@@ -1,5 +1,9 @@
 #include "request.h"
 
+#include <algorithm>
+#include <iostream>
+#include <stdexcept>
+
 std::string HTTPRequest::parseMethodRequestPath(const std::string& http_request, const std::string& method)
 {
 

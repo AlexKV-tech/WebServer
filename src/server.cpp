@@ -1,7 +1,9 @@
 #include "server.h"
 #include "request.h"
 
-#include <algorithm>
+#include <format>
+#include <iostream>
+#include <stdexcept>
 #include <utility>
 
 Server::Server(int family, int connection_type)
