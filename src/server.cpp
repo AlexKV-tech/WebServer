@@ -1,7 +1,6 @@
 #include "server.h"
 #include "request.h"
 
-#include <format>
 #include <iostream>
 #include <stdexcept>
 #include <utility>
@@ -83,9 +82,9 @@ void Server::handleEvents(std::vector<size_t>& invalid_socket_indexes)
         } else if (poll_fds[i].revents & POLLIN) {
             auto data = receiveFromClient(i - 1);
             std::cout << "{"
-                      << data << "}";
-            sendResponseToClient(HTTPRequest::parseMethodRequestPath(data, "GET"), i - 1);
-            std::cout << "POST: " << HTTPRequest::parseMethodRequestPath(data, "POST") << '\n';
+                      << data.getBody() << "}";
+            sendResponseToClient(data.getPath(), i - 1);
+            std::cout << "POST: " << data.getPath() << '\n';
             poll_fds[i].revents = 0;
         }
     }
@@ -136,34 +135,16 @@ bool Server::sendResponseToClient(const std::filesystem::path& filename,
         >= 0;
 }
 
-std::string Server::receiveFromClient(size_t client_num)
+HTTPRequest Server::receiveFromClient(size_t client_num)
 {
 
     if (client_num >= client_sockets.size())
         throw std::length_error("There is no client with such a number " + std::to_string(client_num));
 
     int client_fd = client_sockets[client_num]->getFd();
-    std::string request;
-    char buffer[BufferSize];
-    auto [bytes_read, header_end] = HTTPRequest::readHeader(client_fd, buffer, request);
+    auto http_req = HTTPRequest(client_fd);
 
-    // Check for errors/premature disconnection after header reading
-    if (bytes_read < 0) {
-        std::cerr << "Connection closed (fd: " << client_fd << ")" << std::endl;
-        client_sockets.erase(client_sockets.begin() + client_num);
-        throw std::system_error(
-            errno, std::system_category(),
-            std::format("Failed to fetch data from client {}", client_num));
-    } else if (bytes_read == 0 && request.empty()) {
-        std::cerr << "Connection closed by client (fd: " << client_fd << ")" << std::endl;
-        client_sockets.erase(client_sockets.begin() + client_num);
-        throw std::runtime_error("Client closed connection before sending any data");
-    }
-
-    if (header_end != std::string::npos)
-        HTTPRequest::readBody(client_fd, buffer, request, header_end);
-
-    return request;
+    return http_req;
 }
 
 void Server::setPathMapping(const std::filesystem::path& requested_path,

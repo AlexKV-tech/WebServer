@@ -3,70 +3,102 @@
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
+#include <utility>
 
-std::string HTTPRequest::parseMethodRequestPath(const std::string& http_request, const std::string& method)
+std::pair<ssize_t, size_t> HTTPRequest::readRequestHead(int client_fd, char* buffer, std::string& request_head)
 {
+    ssize_t bytes_read;
+    size_t request_head_end = std::string::npos;
 
-    size_t method_pos = http_request.find(method);
-    if (method_pos == std::string::npos)
-        return "";
+    // Phase 1: Read until we get request line and all headers (until \r\n\r\n)
+    while ((bytes_read = recv(client_fd, buffer, sizeof(buffer), 0)) > 0) {
+        request_head.append(buffer, bytes_read);
 
-    size_t path_start = method_pos + method.length();
-    if (!http_request.empty() && method.back() != ' ')
-        path_start++;
-    size_t path_end = http_request.find(' ', path_start);
-    if (path_end == std::string::npos)
-        return "";
-
-    std::string path = http_request.substr(path_start, path_end - path_start);
-
-    size_t last_slash = path.find_last_of('/');
-    path.erase(std::remove_if(path.begin(), path.end(), isspace), path.end());
-    if (last_slash != std::string::npos && last_slash + 1 < path.size()) {
-        return path.substr(last_slash + 1);
+        if ((request_head_end = request_head.find(HeadersEnd)) != std::string::npos)
+            break;
     }
-    return path;
+
+    // Check for errors/premature disconnection after header reading
+    if (bytes_read < 0) {
+        std::cerr << "Connection closed (fd: " << client_fd << ")" << std::endl;
+        throw std::system_error(
+            errno, std::system_category(),
+            "Failed to fetch data from client");
+    } else if (bytes_read == 0 && request_head.empty()) {
+        std::cerr << "Connection closed by client (fd: " << client_fd << ")" << std::endl;
+        throw std::runtime_error("Client closed connection before sending any data");
+    }
+    return std::make_pair(bytes_read, request_head_end);
 }
 
-unsigned HTTPRequest::extractContentLength(const std::string& http_request, size_t header_end)
+void HTTPRequest::initRequestLine(const std::string& request_head)
 {
+    std::istringstream stream(request_head);
+    std::string line;
+    if (!std::getline(stream, line))
+        throw std::invalid_argument("Empty HTTP request");
 
-    size_t cl_pos = http_request.find(ContentLengthTitle);
-    if (cl_pos != std::string::npos && cl_pos < header_end) {
-        cl_pos += ContentLengthTitle.length(); // Move past "Content-Length: "
-        size_t cl_end = http_request.find("\r\n", cl_pos);
-        if (cl_end != std::string::npos) {
-            try {
-                std::string cl_str = http_request.substr(cl_pos, cl_end - cl_pos);
-                return std::stoul(cl_str);
-            } catch (const std::exception& e) {
-                std::cerr << "Warning: Invalid Content-Length header" << std::endl;
-            }
+    trimCR(line);
+
+    size_t first_space = line.find(' ');
+    size_t second_space = line.find(' ', first_space + 1);
+
+    if (first_space == std::string::npos || second_space == std::string::npos)
+        throw std::invalid_argument("Invalid HTTP request line");
+
+    method = line.substr(0, first_space);
+    url = line.substr(first_space + 1, second_space - first_space - 1);
+    version = line.substr(second_space + 1);
+}
+void HTTPRequest::initHeaders(const std::string& request_head)
+{
+    std::istringstream stream(request_head);
+    std::string line;
+    while (std::getline(stream, line)) {
+        trimCR(line);
+        if (line.empty())
+            break; // End of headers
+
+        auto colon_pos = line.find(':');
+        if (colon_pos != std::string::npos) {
+            std::string key = line.substr(0, colon_pos);
+            std::string value = line.substr(colon_pos + 1);
+
+            // Trim leading spaces from value
+            size_t start = value.find_first_not_of(' ');
+            if (start != std::string::npos)
+                value.erase(0, start);
+
+            this->headers[key] = value;
         }
     }
-    return 0;
 }
-std::pair<ssize_t, size_t> HTTPRequest::readHeader(int client_fd, char* buffer, std::string& request)
+
+HTTPRequest::HTTPRequest(int client_fd)
+    : method("")
+    , url("")
+    , version("")
+    , body("")
+
 {
+    std::string request_head;
+    char buffer[BufferSize];
 
-    ssize_t bytes_read;
-    size_t header_end = std::string::npos;
+    auto [bytes_read, request_head_end] = readRequestHead(client_fd, buffer, request_head);
 
-    // Phase 1: Read until we get all headers (until \r\n\r\n)
-    while ((bytes_read = recv(client_fd, buffer, sizeof(buffer), 0)) > 0) {
-        request.append(buffer, bytes_read);
+    initRequestLine(request_head);
+    initHeaders(request_head);
 
-        if ((header_end = request.find(HeaderEnd)) != std::string::npos)
-            break; // Found end of headers
-    }
-    return std::make_pair(bytes_read, header_end);
+    if (headers.find("Content-Length") != headers.end())
+        initBody(client_fd, buffer, request_head, body, request_head_end);
 }
-void HTTPRequest::readBody(int client_fd, char* buffer, std::string& request, size_t header_end)
+
+void HTTPRequest::initBody(int client_fd, char* buffer, std::string& request_head, std::string& body, size_t request_head_end)
 {
     size_t bytes_read = 0;
-    size_t content_length = extractContentLength(request, header_end);
-    size_t body_start = header_end + HeaderEnd.length();
-    size_t body_received = request.length() - body_start;
+    size_t content_length = std::stoul(headers["Content-Length"]);
+    size_t body_start = request_head_end + HeadersEnd.length();
+    size_t body_received = request_head.length() - body_start;
 
     while (body_received < content_length) {
         bytes_read = recv(client_fd, buffer,
@@ -78,7 +110,7 @@ void HTTPRequest::readBody(int client_fd, char* buffer, std::string& request, si
         else if (bytes_read == 0)
             throw std::runtime_error("Client closed connection during body transmission");
 
-        request.append(buffer, bytes_read);
+        body.append(buffer, bytes_read);
         body_received += bytes_read;
     }
 }

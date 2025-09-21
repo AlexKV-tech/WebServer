@@ -2,6 +2,7 @@
 #define SERVER_H
 
 #include "path_forward.h"
+#include "request.h"
 #include "socket.h"
 
 #include <arpa/inet.h>
@@ -21,7 +22,6 @@ private:
     std::vector<pollfd> poll_fds;
     static constexpr int ListenerPort = 7777;
     static constexpr int Connections = 100;
-    static constexpr size_t BufferSize = 16384;
 
     PathForwarder path_forwarder;
 
@@ -80,7 +80,7 @@ private:
     void logConnection(const struct sockaddr_in& client_addr) const;
     bool sendResponseToClient(const std::filesystem::path& filename,
         size_t client_num) const;
-    std::string receiveFromClient(size_t client_num);
+    HTTPRequest receiveFromClient(size_t client_num);
 };
 
 #endif
