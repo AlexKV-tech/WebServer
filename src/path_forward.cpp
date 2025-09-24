@@ -6,19 +6,20 @@
 #include <iostream>
 #include <stdexcept>
 
-PathForwarder::PathForwarder(const std::filesystem::path& requested_address,
+PathForwarder::PathForwarder(const std::string& method, const std::filesystem::path& requested_address,
     const std::filesystem::path& response_path)
-    : routes({ { requested_address, response_path } })
+    : routes({ { { method, requested_address }, response_path } })
 {
 }
 PathForwarder::PathForwarder()
-    : routes({ { "favicon.ico", "static/favicon.ico" } })
+    : routes({ { { "GET", "favicon.ico" }, "static/favicon.ico" } })
 {
 }
-std::string PathForwarder::generateHttpResponse(
+std::string PathForwarder::generateHttpResponse(const std::string& method,
     const std::filesystem::path& requested_path) const
 {
-    if (routes.find(requested_path) == routes.end()) {
+    auto full_path = std::make_pair(method, requested_path);
+    if (routes.find(full_path) == routes.end()) {
         std::string err_response = std::format(
             "<html>"
             "<head><title> 404 Not Found</title></head>"
@@ -35,7 +36,7 @@ std::string PathForwarder::generateHttpResponse(
                            "{}",
             "text/html", err_response.length(), err_response);
     }
-    std::filesystem::path html_path = routes.at(requested_path);
+    std::filesystem::path html_path = routes.at(full_path);
     auto content_type = mime_types.at(html_path.extension());
     std::ifstream fs(html_path, std::ios::in | std::ios::binary);
 
@@ -51,7 +52,7 @@ std::string PathForwarder::generateHttpResponse(
         content_type, html_content.size(), html_content);
 }
 void PathForwarder::addForwardingRule(
-    const std::filesystem::path& requested_path,
+    const std::string& method, const std::filesystem::path& requested_path,
     const std::filesystem::path& response_path)
 {
     std::filesystem::path html_path = std::filesystem::absolute(ROOT_FLDR);
@@ -61,13 +62,13 @@ void PathForwarder::addForwardingRule(
         throw std::invalid_argument(
             "Either incorrect path, path without file or path to "
             "non-html file was provided");
-
-    routes[requested_path] = html_path;
+    auto full_path = std::make_pair(method, requested_path);
+    routes[full_path] = html_path;
 }
 void PathForwarder::addForwardingRules(
-    const std::map<std::filesystem::path, std::filesystem::path>& routes)
+    const std::map<std::pair<std::string, std::string>, std::filesystem::path>& routes)
 {
     std::for_each(routes.begin(), routes.end(), [this](const auto& pair) {
-        this->addForwardingRule(pair.first, pair.second);
+        this->addForwardingRule(pair.first.first, pair.first.second, pair.second);
     });
 }

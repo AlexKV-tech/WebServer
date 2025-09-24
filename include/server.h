@@ -47,7 +47,7 @@ public:
      * server.setPathMapping("/favicon.ico", "./assets/favicon.ico");
      * @endcode
      */
-    void setPathMapping(const std::filesystem::path& requested_path,
+    void setPathMapping(const std::string& method, const std::filesystem::path& requested_path,
         const std::filesystem::path& response_path);
     /**
      * @brief Maps HTTP request paths to filesystem locations
@@ -69,7 +69,7 @@ public:
      * @endcode
      */
     void setPathMapping(
-        const std::map<std::filesystem::path, std::filesystem::path>& routes);
+        const std::map<std::pair<std::string, std::string>, std::filesystem::path>& routes);
 
 private:
     void updatePollFds();
@@ -78,7 +78,7 @@ private:
     bool connectionsPending() const;
     void acceptConnection();
     void logConnection(const struct sockaddr_in& client_addr) const;
-    bool sendResponseToClient(const std::filesystem::path& filename,
+    bool sendResponseToClient(const std::string& method, const std::filesystem::path& filename,
         size_t client_num) const;
     HTTPRequest receiveFromClient(size_t client_num);
 };

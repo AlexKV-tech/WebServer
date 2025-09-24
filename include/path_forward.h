@@ -4,10 +4,9 @@
 #include <filesystem>
 #include <map>
 #include <string>
-#include <unordered_map>
 
 class PathForwarder {
-    inline static const std::unordered_map<std::string, std::string>
+    inline static const std::map<std::string, std::string>
         mime_types = {
             // Text / Web
             { ".html", "text/html" },
@@ -45,19 +44,19 @@ class PathForwarder {
             { ".ogg", "video/ogg" }
         };
 
-    std::unordered_map<std::filesystem::path, std::filesystem::path> routes;
+    std::map<std::pair<std::string, std::string>, std::filesystem::path> routes;
 
 public:
-    PathForwarder(const std::filesystem::path& requested_path,
+    PathForwarder(const std::string& method, const std::filesystem::path& requested_path,
         const std::filesystem::path& response_path);
     PathForwarder();
     std::string
-    generateHttpResponse(const std::filesystem::path& requested_path) const;
-    void addForwardingRule(const std::filesystem::path& requested_path,
+    generateHttpResponse(const std::string& method, const std::filesystem::path& requested_path) const;
+    void addForwardingRule(const std::string& method, const std::filesystem::path& requested_path,
         const std::filesystem::path& response_path);
     void addForwardingRules(
-        const std::map<std::filesystem::path, std::filesystem::path>& routes);
-    static std::string getContentTypeByPath(const std::filesystem::path& path);
+        const std::map<std::pair<std::string, std::string>, std::filesystem::path>& routes);
+    static std::string getContentType(const std::string& method, const std::filesystem::path& path);
 };
 
 #endif

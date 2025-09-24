@@ -80,12 +80,18 @@ void Server::handleEvents(std::vector<size_t>& invalid_socket_indexes)
             acceptConnection();
             poll_fds[i].revents = 0;
         } else if (poll_fds[i].revents & POLLIN) {
-            auto data = receiveFromClient(i - 1);
-            std::cout << "{"
-                      << data.getBody() << "}";
-            sendResponseToClient(data.getPath(), i - 1);
-            std::cout << "POST: " << data.getPath() << '\n';
-            poll_fds[i].revents = 0;
+            try {
+                HTTPRequest data = receiveFromClient(i - 1);
+                std::cout << "{"
+                          << data.getBody() << "}";
+
+                sendResponseToClient(data.getMethod(), data.getPath(), i - 1);
+                std::cout << "POST: " << data.getPath() << '\n';
+                poll_fds[i].revents = 0;
+
+            } catch (std::exception& e) {
+                invalid_socket_indexes.push_back(i - 1);
+            }
         }
     }
 }
@@ -122,13 +128,13 @@ void Server::logConnection(const struct sockaddr_in& client_addr) const
               << std::endl;
 }
 
-bool Server::sendResponseToClient(const std::filesystem::path& filename,
+bool Server::sendResponseToClient(const std::string& method, const std::filesystem::path& filename,
     size_t client_num) const
 {
     if (client_num >= client_sockets.size())
         throw std::length_error("There is no client with such a number " + std::to_string(client_num));
 
-    std::string response = path_forwarder.generateHttpResponse(filename);
+    std::string response = path_forwarder.generateHttpResponse(method, filename);
 
     return send(client_sockets[client_num]->getFd(), response.c_str(),
                response.size(), 0)
@@ -147,14 +153,14 @@ HTTPRequest Server::receiveFromClient(size_t client_num)
     return http_req;
 }
 
-void Server::setPathMapping(const std::filesystem::path& requested_path,
+void Server::setPathMapping(const std::string& method, const std::filesystem::path& requested_path,
     const std::filesystem::path& response_path)
 {
-    path_forwarder.addForwardingRule(requested_path, response_path);
+    path_forwarder.addForwardingRule(method, requested_path, response_path);
 }
 
 void Server::setPathMapping(
-    const std::map<std::filesystem::path, std::filesystem::path>& routes)
+    const std::map<std::pair<std::string, std::string>, std::filesystem::path>& routes)
 {
     path_forwarder.addForwardingRules(routes);
 }

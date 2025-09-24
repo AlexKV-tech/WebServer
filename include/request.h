@@ -2,15 +2,15 @@
 #define REQUEST_H
 
 #include <filesystem>
+#include <map>
 #include <string>
 #include <sys/socket.h>
-#include <unordered_map>
 
 class HTTPRequest {
     std::string method;
     std::filesystem::path url;
     std::string version;
-    std::unordered_map<std::string, std::string> headers;
+    std::map<std::string, std::string> headers;
     std::string body;
     static constexpr std::string_view ContentLengthTitle = "Content-Length: ";
     static constexpr std::string_view HeadersEnd = "\r\n\r\n";
