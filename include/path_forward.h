@@ -1,6 +1,8 @@
 #ifndef PATH_FORWARD_H
 #define PATH_FORWARD_H
 
+#include "request.h"
+
 #include <filesystem>
 #include <map>
 #include <string>
@@ -47,16 +49,16 @@ class PathForwarder {
     std::map<std::pair<std::string, std::string>, std::filesystem::path> routes;
 
 public:
-    PathForwarder(const std::string& method, const std::filesystem::path& requested_path,
+    PathForwarder(HTTPRequest::HTTPMethod method, const std::filesystem::path& requested_path,
         const std::filesystem::path& response_path);
     PathForwarder();
     std::string
-    generateHttpResponse(const std::string& method, const std::filesystem::path& requested_path) const;
-    void addForwardingRule(const std::string& method, const std::filesystem::path& requested_path,
+    generateHttpResponse(HTTPRequest::HTTPMethod method, const std::filesystem::path& requested_path) const;
+    void addForwardingRule(HTTPRequest::HTTPMethod method, const std::filesystem::path& requested_path,
         const std::filesystem::path& response_path);
     void addForwardingRules(
         const std::map<std::pair<std::string, std::string>, std::filesystem::path>& routes);
-    static std::string getContentType(const std::string& method, const std::filesystem::path& path);
+    static std::string getContentType(HTTPRequest::HTTPMethod method, const std::filesystem::path& path);
 };
 
 #endif

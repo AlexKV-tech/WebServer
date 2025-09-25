@@ -128,7 +128,7 @@ void Server::logConnection(const struct sockaddr_in& client_addr) const
               << std::endl;
 }
 
-bool Server::sendResponseToClient(const std::string& method, const std::filesystem::path& filename,
+bool Server::sendResponseToClient(HTTPRequest::HTTPMethod method, const std::filesystem::path& filename,
     size_t client_num) const
 {
     if (client_num >= client_sockets.size())
@@ -153,7 +153,7 @@ HTTPRequest Server::receiveFromClient(size_t client_num)
     return http_req;
 }
 
-void Server::setPathMapping(const std::string& method, const std::filesystem::path& requested_path,
+void Server::setPathMapping(HTTPRequest::HTTPMethod method, const std::filesystem::path& requested_path,
     const std::filesystem::path& response_path)
 {
     path_forwarder.addForwardingRule(method, requested_path, response_path);

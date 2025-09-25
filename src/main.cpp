@@ -6,8 +6,8 @@
 int main(int argc, char* argv[])
 {
     Server s(AF_INET, SOCK_STREAM);
-    s.setPathMapping("GET", "/", "static/main.html");
-    s.setPathMapping("GET", "/favicon.ico", "static/favicon.ico");
+    s.setPathMapping(HTTPRequest::HTTPMethod::GET, "/", "static/main.html");
+    s.setPathMapping(HTTPRequest::HTTPMethod::GET, "/favicon.ico", "static/favicon.ico");
     s.run();
 
     return 0;

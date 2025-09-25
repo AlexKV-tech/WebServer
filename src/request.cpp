@@ -46,7 +46,7 @@ void HTTPRequest::initRequestLine(const std::string& request_head)
     if (first_space == std::string::npos || second_space == std::string::npos)
         throw std::invalid_argument("Invalid HTTP request line");
 
-    method = line.substr(0, first_space);
+    method = to_http_method(line.substr(0, first_space));
     url = line.substr(first_space + 1, second_space - first_space - 1);
     version = line.substr(second_space + 1);
 }
@@ -75,7 +75,7 @@ void HTTPRequest::initHeaders(const std::string& request_head)
 }
 
 HTTPRequest::HTTPRequest(int client_fd)
-    : method("")
+    : method(HTTPMethod::NONE)
     , url("")
     , version("")
     , body("")
