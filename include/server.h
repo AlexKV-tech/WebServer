@@ -1,28 +1,24 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include "path_forward.h"
-#include "request.h"
-#include "socket.h"
-
 #include <arpa/inet.h>
+#include <poll.h>
+
 #include <ctime>
 #include <map>
 #include <memory>
-#include <poll.h>
 #include <vector>
 
-class Server {
+#include "connection_manager.h"
+#include "http_method.h"
+#include "http_request.h"
+#include "path_forwarder.h"
+#include "socket.h"
+
+class Server
+{
 private:
-    int family;
-    int connection_type;
-
-    std::unique_ptr<ListeningSocket> listener;
-    std::vector<std::unique_ptr<Socket>> client_sockets;
-    std::vector<pollfd> poll_fds;
-    static constexpr int ListenerPort = 7777;
-    static constexpr int Connections = 100;
-
+    ConnectionManager connection_manager;
     PathForwarder path_forwarder;
 
 public:
@@ -32,12 +28,12 @@ public:
      */
     void run();
     /**
-     * @brief Maps a single HTTP request path to a filesystem location
+     * @brief Maps a single Http request path to a filesystem location
      *
-     * Configures the server to serve a specific file when the given HTTP path
+     * Configures the server to serve a specific file when the given Http path
      * is requested.
      *
-     * @param requested_path HTTP request path (e.g., "/", "/about")
+     * @param requested_path Http request path (e.g., "/", "/about")
      * @param response_path Filesystem path to the file to serve (e.g.,
      * "./static/index.html")
      *
@@ -47,16 +43,17 @@ public:
      * server.setPathMapping("/favicon.ico", "./assets/favicon.ico");
      * @endcode
      */
-    void setPathMapping(HTTPRequest::HTTPMethod method, const std::filesystem::path& requested_path,
-        const std::filesystem::path& response_path);
+    void setPathMapping(HttpMethod method,
+                        const std::filesystem::path& requested_path,
+                        const std::filesystem::path& response_path);
     /**
-     * @brief Maps HTTP request paths to filesystem locations
+     * @brief Maps Http request paths to filesystem locations
      *
-     * Configures the server to serve files by mapping HTTP request URLs
+     * Configures the server to serve files by mapping Http request URLs
      * to specific filesystem paths.
      *
      * @param routes Map where:
-     *               - Key: HTTP request path (e.g., "/", "/about")
+     *               - Key: Http request path (e.g., "/", "/about")
      *               - Value: Filesystem path (e.g., "./static/index.html")
      *
      * @example
@@ -68,19 +65,8 @@ public:
      * server.setFileRoutes(routes);
      * @endcode
      */
-    void setPathMapping(
-        const std::map<std::pair<std::string, std::string>, std::filesystem::path>& routes);
-
-private:
-    void updatePollFds();
-    sockaddr_in generateLocalAddress() const;
-    void handleEvents(std::vector<size_t>& invalid_socket_indexes);
-    bool connectionsPending() const;
-    void acceptConnection();
-    void logConnection(const struct sockaddr_in& client_addr) const;
-    bool sendResponseToClient(HTTPRequest::HTTPMethod method, const std::filesystem::path& filename,
-        size_t client_num) const;
-    HTTPRequest receiveFromClient(size_t client_num);
+    void setPathMapping(const std::map<std::pair<std::string, std::string>,
+                                       std::filesystem::path>& routes);
 };
 
 #endif

@@ -1,14 +1,16 @@
 #ifndef SOCKET_H
 #define SOCKET_H
 
-#include <cassert>
-#include <cstring>
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
-class Socket {
+#include <cassert>
+#include <cstring>
+
+class Socket
+{
 protected:
     int family;
     int type;
@@ -17,14 +19,11 @@ protected:
 public:
     Socket(int family, int type, int fd);
     ~Socket();
-    int
-    getFd() const
-    {
-        return fd;
-    }
+    int getFd() const { return fd; }
 };
 
-class ListeningSocket : public Socket {
+class ListeningSocket : public Socket
+{
 public:
     ListeningSocket(int family, int type);
     void bindAddress(const struct sockaddr_in& address);
