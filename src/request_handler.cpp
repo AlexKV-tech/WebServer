@@ -9,8 +9,8 @@ HttpRequest RequestHandler::receiveRequestFromClient(int client_fd)
     return http_req;
 }
 bool RequestHandler::sendResponseToClient(
-    HttpMethod method, const std::filesystem::path& filename, int client_fd,
-    const PathForwarder& path_forwarder) const
+    HttpMethod method, const std::filesystem::path &filename, int client_fd,
+    const PathForwarder &path_forwarder) const
 {
     std::string response = RequestGenerator::generateHttpResponse(
         method, filename, path_forwarder);
@@ -18,7 +18,7 @@ bool RequestHandler::sendResponseToClient(
     return send(client_fd, response.c_str(), response.size(), 0) >= 0;
 }
 bool RequestHandler::handleRequest(int client_fd,
-                                   const PathForwarder& path_forwarder)
+                                   const PathForwarder &path_forwarder)
 {
     HttpRequest data = receiveRequestFromClient(client_fd);
     std::cout << "{" << data.getBody() << "}";

@@ -1,61 +1,59 @@
 #include "socket.h"
-
 #include <system_error>
+#include <algorithm>
 
 Socket::Socket(int family, int type, int fd)
     : family(family), type(type), fd(fd)
 {
-    assert((family == AF_INET) &&
-           type == SOCK_STREAM);  // Implementantion is IPv4 and TCP only
+
     if (fd < 0)
-        throw std::system_error(errno, std::system_category(),
-                                "Failed to create socket");
+        throw std::system_error(errno, std::system_category(), "Socket creation failed");
 }
 
 Socket::~Socket()
 {
     if (fd >= 0)
     {
-        shutdown(fd, SHUT_RDWR);
         close(fd);
     }
 }
 
-ListeningSocket::ListeningSocket(int family, int type)
+Listener::Listener(int family, int type)
     : Socket(family, type, socket(family, type, 0))
 {
 }
 
-void ListeningSocket::bindAddress(const struct sockaddr_in& address)
+void Listener::bindAddress(const struct sockaddr_in &address)
 {
     enableAddressReuse();
-
-    if (bind(fd, (const struct sockaddr*)&address, sizeof(address)) < 0)
-        throw std::system_error(errno, std::system_category(),
-                                "Failed to bind socket");
+    if (bind(fd, (const struct sockaddr *)&address, sizeof(address)) < 0)
+        throw std::system_error(errno, std::system_category(), "Failed to bind");
 }
-void ListeningSocket::enableAddressReuse()
+
+void Listener::enableAddressReuse()
 {
     int state = 1;
-    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &state, sizeof(state)) < 0)
-        throw std::system_error(errno, std::system_category(),
-                                "Failed to allow local address reuse");
+    setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &state, sizeof(state));
 }
 
-void ListeningSocket::listenConnections(int connections)
+void Listener::listenConnections(int connections)
 {
     if (listen(fd, connections) < 0)
-        throw std::system_error(errno, std::system_category(),
-                                "Failed to create listening socket");
+        throw std::system_error(errno, std::system_category(), "Listen failed");
 }
-int ListeningSocket::acceptConnection(sockaddr_in& client_address)
+
+pollfd Listener::getPollConfig() const
 {
-    int client_fd = -1;
-    unsigned long client_address_size = sizeof(client_address);
-    if ((client_fd = accept(this->fd, (sockaddr*)&client_address,
-                            (socklen_t*)&client_address_size)) < 0)
-        throw std::system_error(errno, std::system_category(),
-                                "Failed to create data transfer socket");
+    return {fd, POLLIN, 0};
+}
+
+int Listener::acceptConnection(sockaddr_in &client_address)
+{
+    socklen_t client_address_size = sizeof(client_address);
+    int client_fd = accept(this->fd, (sockaddr *)&client_address, &client_address_size);
+
+    if (client_fd < 0)
+        throw std::system_error(errno, std::system_category(), "Accept failed");
 
     return client_fd;
 }

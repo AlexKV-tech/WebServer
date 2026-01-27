@@ -20,7 +20,7 @@ void Server::run()
         {
             connection_manager.pollForEvents(path_forwarder);
         }
-        catch (std::exception& err)
+        catch (std::exception &err)
         {
             std::cerr << err.what();
         }
@@ -28,14 +28,14 @@ void Server::run()
 }
 
 void Server::setPathMapping(HttpMethod method,
-                            const std::filesystem::path& requested_path,
-                            const std::filesystem::path& response_path)
+                            const std::filesystem::path &requested_path,
+                            const std::filesystem::path &response_path)
 {
     path_forwarder.addForwardingRule(method, requested_path, response_path);
 }
 
 void Server::setPathMapping(const std::map<std::pair<std::string, std::string>,
-                                           std::filesystem::path>& routes)
+                                           std::filesystem::path> &routes)
 {
     path_forwarder.addForwardingRules(routes);
 }

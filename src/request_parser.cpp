@@ -1,6 +1,6 @@
 #include "request_parser.h"
 
-RequestParser::RequestParser(int client_fd, HttpRequest& http_request)
+RequestParser::RequestParser(int client_fd, HttpRequest &http_request)
 {
     std::string request_head;
     char buffer[BufferSize];
@@ -15,7 +15,7 @@ RequestParser::RequestParser(int client_fd, HttpRequest& http_request)
         initBody(client_fd, buffer, request_head, body, request_head_end);
 }
 std::pair<ssize_t, size_t> RequestParser::readRequestHead(
-    int client_fd, char* buffer, std::string& request_head)
+    int client_fd, char *buffer, std::string &request_head)
 {
     ssize_t bytes_read;
     size_t request_head_end = std::string::npos;
@@ -49,8 +49,8 @@ std::pair<ssize_t, size_t> RequestParser::readRequestHead(
     return std::make_pair(bytes_read, request_head_end);
 }
 
-void RequestParser::initRequestLine(const std::string& request_head,
-                                    HttpRequest& http_request)
+void RequestParser::initRequestLine(const std::string &request_head,
+                                    HttpRequest &http_request)
 {
     std::istringstream stream(request_head);
     std::string line;
@@ -72,8 +72,8 @@ void RequestParser::initRequestLine(const std::string& request_head,
     http_request.setUrl(url);
     http_request.setVersion(version);
 }
-void RequestParser::initHeaders(const std::string& request_head,
-                                HttpRequest& http_request)
+void RequestParser::initHeaders(const std::string &request_head,
+                                HttpRequest &http_request)
 {
     std::istringstream stream(request_head);
     std::string line;
@@ -81,7 +81,7 @@ void RequestParser::initHeaders(const std::string& request_head,
     {
         trimCR(line);
         if (line.empty())
-            break;  // End of headers
+            break; // End of headers
 
         auto colon_pos = line.find(':');
         if (colon_pos != std::string::npos)
@@ -99,8 +99,8 @@ void RequestParser::initHeaders(const std::string& request_head,
     }
 }
 
-void RequestParser::initBody(int client_fd, char* buffer,
-                             std::string& request_head, std::string& body,
+void RequestParser::initBody(int client_fd, char *buffer,
+                             std::string &request_head, std::string &body,
                              size_t request_head_end)
 {
     size_t bytes_read = 0;

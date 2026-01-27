@@ -3,8 +3,8 @@
 #include <filesystem>
 
 std::string RequestGenerator::generateHttpResponse(
-    HttpMethod method, const std::filesystem::path& requested_path,
-    const PathForwarder& path_forwarder)
+    HttpMethod method, const std::filesystem::path &requested_path,
+    const PathForwarder &path_forwarder)
 {
     auto path = path_forwarder.findServerPath(
         std::make_pair(to_string(method), requested_path));
@@ -21,7 +21,7 @@ std::string RequestGenerator::generateHttpResponse(
             "</html>",
             requested_path.string());
         return std::format(
-            "Http/1.1 404 Not Found\r\n"
+            "HTTP/1.1 404 Not Found\r\n"
             "Content-Type: {}\r\n"
             "Content-Length: {}\r\n"
             "\r\n"
@@ -37,7 +37,7 @@ std::string RequestGenerator::generateHttpResponse(
 
     fs.close();
     return std::format(
-        "Http/1.1 200 OK\r\n"
+        "HTTP/1.1 200 OK\r\n"
         "Content-Type: {}\r\n"
         "Content-Length: {}\r\n"
         "\r\n"
