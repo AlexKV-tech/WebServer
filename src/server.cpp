@@ -1,11 +1,8 @@
-#include "server.h"
-
-#include <iostream>
-#include <stdexcept>
 #include <utility>
 
 #include "connection_manager.h"
 #include "http_request.h"
+#include "server.h"
 
 Server::Server(int family, int connection_type)
     : connection_manager(family, connection_type), path_forwarder()
@@ -16,14 +13,8 @@ void Server::run()
 {
     while (true)
     {
-        try
-        {
-            connection_manager.pollForEvents(path_forwarder);
-        }
-        catch (std::exception &err)
-        {
-            std::cerr << err.what();
-        }
+        connection_manager.pollForEvents(path_forwarder);
+
     }
 }
 

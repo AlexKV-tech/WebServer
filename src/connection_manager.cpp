@@ -1,8 +1,11 @@
-#include "connection_manager.h"
-
-#include "http_request.h"
-
 #include <algorithm>
+#include <expected>
+#include <cstring>
+#include <iostream>
+#include <arpa/inet.h>
+
+#include "connection_manager.h"
+#include "http_request.h"
 
 ConnectionManager::ConnectionManager(int family, int connection_type)
     : family(family),
@@ -15,7 +18,7 @@ ConnectionManager::ConnectionManager(int family, int connection_type)
 
 sockaddr_in ConnectionManager::generateLocalAddress() const
 {
-    struct sockaddr_in address{};
+    sockaddr_in address{};
     memset(&address, 0, sizeof(address));
 
     address.sin_family = family;
@@ -26,8 +29,7 @@ sockaddr_in ConnectionManager::generateLocalAddress() const
 }
 
 void ConnectionManager::logConnection(
-    const struct sockaddr_in &client_addr) const
-{
+    const sockaddr_in &client_addr) {
     char client_ip[INET_ADDRSTRLEN];
     inet_ntop(AF_INET, &client_addr.sin_addr, client_ip, sizeof(client_ip));
     int client_port = ntohs(client_addr.sin_port);
@@ -35,7 +37,7 @@ void ConnectionManager::logConnection(
               << std::endl;
 }
 
-void ConnectionManager::pollForEvents(const PathForwarder &path_forwarder)
+std::expected<void, ConnectionManagerErr> ConnectionManager::pollForEvents(const PathForwarder &path_forwarder)
 {
 
     std::vector<pollfd> fds;
@@ -52,20 +54,21 @@ void ConnectionManager::pollForEvents(const PathForwarder &path_forwarder)
 
     if (pending < 0)
     {
-        throw std::runtime_error("Poll error");
+        return std::unexpected(ConnectionManagerErr::PollErr);
     }
 
     if (pending == 0)
     {
         std::cout << "No connections pending" << std::endl;
-        return;
+        return {};
     }
 
     std::vector<size_t> to_remove;
 
     if (fds[0].revents & POLLIN)
     {
-        acceptConnection();
+        if (!acceptConnection())
+            return std::unexpected(ConnectionManagerErr::acceptErr);
     }
 
     for (size_t i = 1; i < fds.size(); ++i)
@@ -81,14 +84,8 @@ void ConnectionManager::pollForEvents(const PathForwarder &path_forwarder)
         }
         else if (fds[i].revents & POLLIN)
         {
-            try
-            {
-                request_handler.handleRequest(client_sockets[client_idx]->getFd(), path_forwarder);
-            }
-            catch (...)
-            {
-                to_remove.push_back(client_idx);
-            }
+            request_handler.handleRequest(client_sockets[client_idx]->getFd(), path_forwarder);
+            //to_remove.push_back(client_idx);
         }
     }
 
@@ -100,14 +97,18 @@ void ConnectionManager::pollForEvents(const PathForwarder &path_forwarder)
             client_sockets.erase(client_sockets.begin() + idx);
         }
     }
+    return {};
 }
 
-void ConnectionManager::acceptConnection()
+std::expected<void, ConnectionManagerErr> ConnectionManager::acceptConnection()
 {
-    struct sockaddr_in client_addr{};
+    sockaddr_in client_addr{};
+    if (auto accept_result = listener->acceptConnection(client_addr); accept_result.has_value()) {
+        client_sockets.push_back(std::make_unique<Socket>(
+        family, connection_type, accept_result.value()));
 
-    client_sockets.push_back(std::make_unique<Socket>(
-        family, connection_type, listener->acceptConnection(client_addr)));
-
-    logConnection(client_addr);
+        logConnection(client_addr);
+        return {};
+    }
+    return std::unexpected(ConnectionManagerErr::acceptErr);
 }

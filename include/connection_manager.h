@@ -1,16 +1,21 @@
 #ifndef CONNECTION_MANAGER_H
 #define CONNECTION_MANAGER_H
-#include <arpa/inet.h>
 
-#include <iostream>
 #include <memory>
 #include <vector>
+#include <expected>
 
 #include "request_handler.h"
 #include "socket.h"
+
+enum class ConnectionManagerErr {
+    PollErr,
+    acceptErr,
+};
+
 class ConnectionManager
 {
-private:
+
     int family;
     int connection_type;
 
@@ -24,13 +29,10 @@ private:
 
 public:
     ConnectionManager(int family, int connection_type);
-    void updatePollFds();
-    sockaddr_in generateLocalAddress() const;
-    void acceptConnection();
-    void logConnection(const struct sockaddr_in &client_addr) const;
-    void removeDisconnectedClients(
-        std::vector<size_t> &disconnected_clients_socket_idxs);
-    void pollForEvents(const PathForwarder &path_forwarder);
-    bool connectionsPending() const;
+    std::expected<void, ConnectionManagerErr> pollForEvents(const PathForwarder &path_forwarder);
+private:
+    [[nodiscard]] sockaddr_in generateLocalAddress() const;
+    std::expected<void, ConnectionManagerErr> acceptConnection();
+    static void logConnection(const sockaddr_in &client_addr);
 };
 #endif

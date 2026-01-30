@@ -1,23 +1,15 @@
 #ifndef SERVER_H
 #define SERVER_H
 
-#include <arpa/inet.h>
-#include <poll.h>
-
-#include <ctime>
 #include <map>
-#include <memory>
-#include <vector>
 
 #include "connection_manager.h"
 #include "http_method.h"
 #include "http_request.h"
 #include "path_forwarder.h"
-#include "socket.h"
 
 class Server
 {
-private:
     ConnectionManager connection_manager;
     PathForwarder path_forwarder;
 
@@ -33,6 +25,7 @@ public:
      * Configures the server to serve a specific file when the given Http path
      * is requested.
      *
+     * @param method
      * @param requested_path Http request path (e.g., "/", "/about")
      * @param response_path Filesystem path to the file to serve (e.g.,
      * "./static/index.html")

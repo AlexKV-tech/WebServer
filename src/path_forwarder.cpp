@@ -1,17 +1,15 @@
-#include "path_forwarder.h"
-
 #include <algorithm>
 #include <cassert>
 #include <filesystem>
-#include <format>
-#include <fstream>
-#include <iostream>
-#include <stdexcept>
+#include <ranges>
+
+#include "path_forwarder.h"
+
 
 PathForwarder::PathForwarder(HttpMethod method,
-                             const std::filesystem::path& requested_address,
+                             const std::filesystem::path& requested_path,
                              const std::filesystem::path& response_path)
-    : routes({{{to_string(method), requested_address}, response_path}})
+    : routes({{{std::string(httpMethodToString(method)), requested_path}, response_path}})
 {
 }
 PathForwarder::PathForwarder()
@@ -19,7 +17,7 @@ PathForwarder::PathForwarder()
 {
 }
 
-void PathForwarder::addForwardingRule(
+std::expected<void, ForwardingErr> PathForwarder::addForwardingRule(
     HttpMethod method, const std::filesystem::path& requested_path,
     const std::filesystem::path& response_path)
 {
@@ -27,34 +25,36 @@ void PathForwarder::addForwardingRule(
 
     html_path /= response_path;
     if (!std::filesystem::exists(html_path) ||
-        !std::filesystem::is_regular_file(html_path))
-        throw std::invalid_argument(
-            "Either incorrect path, path without file or path to "
-            "non-html file was provided");
-    auto full_path = std::make_pair(to_string(method), requested_path);
+        !std::filesystem::is_regular_file(html_path)) {
+        return std::unexpected(ForwardingErr::IncorrectPathErr);
+    }
+
+    auto full_path = std::make_pair(std::string(httpMethodToString(method)), requested_path);
     routes[full_path] = html_path;
+    return {};
 }
 void PathForwarder::addForwardingRules(
     const std::map<std::pair<std::string, std::string>, std::filesystem::path>&
         routes)
 {
-    std::for_each(routes.begin(), routes.end(),
-                  [this](const auto& pair)
-                  {
-                      this->addForwardingRule(to_http_method(pair.first.first),
-                                              pair.first.second, pair.second);
-                  });
+    std::ranges::for_each(routes,
+                          [this](const auto& pair)
+                          {
+                              this->addForwardingRule(stringToHttpMethod(pair.first.first),
+                                                      pair.first.second, pair.second);
+                          });
 }
 std::optional<std::filesystem::path> PathForwarder::findServerPath(
-    const std::pair<std::string, std::string>& html_path) const
+    const std::pair<std::string_view, std::string_view>& html_path) const
 {
-    auto path_map = routes.find(html_path);
-    assert(routes.size() >= 2);
-    if (path_map == routes.end())
-        return {};
-    return path_map->second;
+
+    if (auto path_map = routes.find(html_path); path_map != routes.end())
+        return path_map->second;
+    return {};
 }
-std::string PathForwarder::getMimeType(const std::string file_extension) const
-{
-    return mime_types.at(file_extension);
+std::string_view PathForwarder::getMimeType(std::string_view file_extension) {
+    if (auto it = mime_types.find(file_extension); it != mime_types.end()) {
+        return it->second;
+    }
+    return "text/html";
 }

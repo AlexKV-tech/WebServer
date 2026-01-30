@@ -1,18 +1,22 @@
 #ifndef REQUEST_PARSER_H
 #define REQUEST_PARSER_H
-#include <sys/socket.h>
 
-#include <algorithm>
 #include <filesystem>
 #include <iostream>
 #include <map>
-#include <sstream>
-#include <stdexcept>
 #include <string>
 #include <utility>
+#include <expected>
 
 #include "http_method.h"
 #include "http_request.h"
+
+enum class RequestParserErr {
+    FetchErr,
+    PrematureDisconnectionErr,
+    BodyReadErr,
+    InvalidHttpErr,
+};
 
 class HttpRequest;
 class RequestParser
@@ -29,18 +33,21 @@ class RequestParser
 public:
     RequestParser(int client_fd, HttpRequest& http_request);
 
-    void initRequestLine(const std::string& request_head,
-                         HttpRequest& http_request);
-    void initHeaders(const std::string& request_head,
-                     HttpRequest& http_request);
+
+private:
+    static std::expected<void, RequestParserErr> initRequestLine(std::string_view request_head,
+                                                                 HttpRequest& http_request);
+    static void initHeaders(std::string_view request_head,
+                            HttpRequest& http_request);
     static void trimCR(std::string& s)
     {
         if (!s.empty() && s.back() == '\r')
             s.pop_back();
     }
-    std::pair<ssize_t, size_t> readRequestHead(int client_fd, char* buffer,
-                                               std::string& request_head);
-    void initBody(int client_fd, char* buffer, std::string& request_head,
-                  std::string& body, size_t request_head_end);
+    static std::expected<std::pair<ssize_t, size_t>, RequestParserErr> readRequestHead(int client_fd, char* buffer,
+                                                                                       std::string& request_head);
+    std::expected<void, RequestParserErr> initBody(int client_fd, char* buffer, const std::string& request_head,
+                  std::string& body, size_t request_head_end) const;
+
 };
 #endif

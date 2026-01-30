@@ -1,11 +1,4 @@
 #include "http_request.h"
-
-#include <algorithm>
-#include <iostream>
-#include <sstream>
-#include <stdexcept>
-#include <utility>
-
 #include "request_parser.h"
 
 HttpRequest::HttpRequest(int client_fd)
@@ -15,13 +8,13 @@ HttpRequest::HttpRequest(int client_fd)
     RequestParser(client_fd, *this);
 }
 void HttpRequest::setMethod(HttpMethod method) { this->method = method; }
-void HttpRequest::setUrl(const std::string& url) { this->url = url; }
+void HttpRequest::setUrl(std::string_view url) { this->url = url; }
 
-void HttpRequest::setVersion(const std::string& version)
+void HttpRequest::setVersion(std::string_view version)
 {
     this->version = version;
 }
-void HttpRequest::setHeader(const std::string& key, const std::string& value)
+void HttpRequest::setHeader(std::string_view key, std::string_view value)
 {
-    this->headers[key] = value;
+    this->headers[std::string(key)] = value;
 }

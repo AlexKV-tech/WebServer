@@ -1,5 +1,7 @@
-#include "request_handler.h"
+#include <iostream>
+#include <sys/socket.h>
 
+#include "request_handler.h"
 #include "request_generator.h"
 
 HttpRequest RequestHandler::receiveRequestFromClient(int client_fd)
@@ -8,23 +10,23 @@ HttpRequest RequestHandler::receiveRequestFromClient(int client_fd)
 
     return http_req;
 }
-bool RequestHandler::sendResponseToClient(
+std::expected<void, RequestHandlerErr> RequestHandler::sendResponseToClient(
     HttpMethod method, const std::filesystem::path &filename, int client_fd,
-    const PathForwarder &path_forwarder) const
-{
+    const PathForwarder &path_forwarder) {
     std::string response = RequestGenerator::generateHttpResponse(
         method, filename, path_forwarder);
-
-    return send(client_fd, response.c_str(), response.size(), 0) >= 0;
+    if (send(client_fd, response.c_str(), response.size(), MSG_NOSIGNAL) >= 0)
+        return {};
+    return std::unexpected(RequestHandlerErr::SendErr);
 }
-bool RequestHandler::handleRequest(int client_fd,
+std::expected<void, RequestHandlerErr> RequestHandler::handleRequest(int client_fd,
                                    const PathForwarder &path_forwarder)
 {
     HttpRequest data = receiveRequestFromClient(client_fd);
     std::cout << "{" << data.getBody() << "}";
 
-    bool success = sendResponseToClient(data.getMethod(), data.getPath(),
+    auto send_res = sendResponseToClient(data.getMethod(), data.getPath(),
                                         client_fd, path_forwarder);
     std::cout << "POST: " << data.getPath() << '\n';
-    return success;
+    return send_res;
 }

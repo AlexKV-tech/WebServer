@@ -1,6 +1,7 @@
 #ifndef PATH_FORWARDER_H
 #define PATH_FORWARDER_H
 
+#include <expected>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -8,9 +9,14 @@
 
 #include "http_method.h"
 
+enum class ForwardingErr {
+    IncorrectPathErr,
+
+};
+
 class PathForwarder
 {
-    inline static const std::map<std::string, std::string> mime_types = {
+    inline static const std::map<std::string, std::string, std::less<>> mime_types = {
         // Text / Web
         {".html", "text/html"},
         {".htm", "text/html"},
@@ -46,7 +52,7 @@ class PathForwarder
         {".webm", "video/webm"},
         {".ogg", "video/ogg"}};
 
-    std::map<std::pair<std::string, std::string>, std::filesystem::path>
+    std::map<std::pair<std::string, std::string>, std::filesystem::path, std::less<>>
         routes;
 
 public:
@@ -55,16 +61,16 @@ public:
                   const std::filesystem::path& response_path);
     PathForwarder();
 
-    void addForwardingRule(HttpMethod method,
+    std::expected<void, ForwardingErr> addForwardingRule(HttpMethod method,
                            const std::filesystem::path& requested_path,
                            const std::filesystem::path& response_path);
     void addForwardingRules(const std::map<std::pair<std::string, std::string>,
                                            std::filesystem::path>& routes);
-    static std::string getContentType(HttpMethod method,
+    static std::string_view getContentType(HttpMethod method,
                                       const std::filesystem::path& path);
-    std::optional<std::filesystem::path> findServerPath(
-        const std::pair<std::string, std::string>& html_path) const;
-    std::string getMimeType(const std::string file_extension) const;
+    [[nodiscard]] std::optional<std::filesystem::path> findServerPath(
+        const std::pair<std::string_view, std::string_view>& html_path) const;
+    [[nodiscard]] static std::string_view getMimeType(std::string_view file_extension);
 };
 
 #endif

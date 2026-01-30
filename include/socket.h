@@ -4,10 +4,11 @@
 #include <netinet/in.h>
 #include <poll.h>
 #include <sys/socket.h>
-#include <unistd.h>
+#include <expected>
 
-#include <cassert>
-#include <cstring>
+enum class ListenerErr {
+    AcceptErr,
+};
 
 class Socket
 {
@@ -33,12 +34,14 @@ class Listener : public Socket
 
 public:
     Listener(int family, int type);
-    void bindAddress(const struct sockaddr_in &address);
-    void enableAddressReuse();
+    void bindAddress(const sockaddr_in &address);
+
     void listenConnections(int connections);
     pollfd getPollConfig() const;
 
-    int acceptConnection(sockaddr_in &client_address);
+    std::expected<int, ListenerErr> acceptConnection(sockaddr_in &client_address);
+private:
+    void enableAddressReuse();
 };
 
 #endif

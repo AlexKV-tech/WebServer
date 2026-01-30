@@ -1,3 +1,5 @@
+#include <sys/socket.h>
+
 #include "request_parser.h"
 
 RequestParser::RequestParser(int client_fd, HttpRequest &http_request)
@@ -6,15 +8,15 @@ RequestParser::RequestParser(int client_fd, HttpRequest &http_request)
     char buffer[BufferSize];
 
     auto [bytes_read, request_head_end] =
-        readRequestHead(client_fd, buffer, request_head);
+        readRequestHead(client_fd, buffer, request_head).value();
 
     initRequestLine(request_head, http_request);
     initHeaders(request_head, http_request);
 
-    if (headers.find("Content-Length") != headers.end())
+    if (headers.contains("Content-Length"))
         initBody(client_fd, buffer, request_head, body, request_head_end);
 }
-std::pair<ssize_t, size_t> RequestParser::readRequestHead(
+std::expected<std::pair<ssize_t, size_t>, RequestParserErr> RequestParser::readRequestHead(
     int client_fd, char *buffer, std::string &request_head)
 {
     ssize_t bytes_read;
@@ -36,92 +38,124 @@ std::pair<ssize_t, size_t> RequestParser::readRequestHead(
     {
         std::cerr << "Connection closed (fd: " << client_fd << ")"
                   << std::endl;
-        throw std::system_error(errno, std::system_category(),
-                                "Failed to fetch data from client");
+        return std::unexpected(RequestParserErr::FetchErr);
     }
     else if (bytes_read == 0 && request_head.empty())
     {
         std::cerr << "Connection closed by client (fd: " << client_fd << ")"
                   << std::endl;
-        throw std::runtime_error(
-            "Client closed connection before sending any data");
+        return std::unexpected(RequestParserErr::PrematureDisconnectionErr);
     }
     return std::make_pair(bytes_read, request_head_end);
 }
 
-void RequestParser::initRequestLine(const std::string &request_head,
+std::expected<void, RequestParserErr> RequestParser::initRequestLine(std::string_view request_head,
                                     HttpRequest &http_request)
 {
-    std::istringstream stream(request_head);
-    std::string line;
-    if (!std::getline(stream, line))
-        throw std::invalid_argument("Empty Http request");
 
-    trimCR(line);
+    size_t line_end = request_head.find('\n');
+
+
+    if (line_end == std::string_view::npos)
+        return std::unexpected(RequestParserErr::InvalidHttpErr);
+
+
+    std::string_view line = request_head.substr(0, line_end);
+
+
+    if (line.ends_with('\r')) {
+        line.remove_suffix(1);
+    }
 
     size_t first_space = line.find(' ');
+    if (first_space == std::string_view::npos)
+        return std::unexpected(RequestParserErr::InvalidHttpErr);
+
+
     size_t second_space = line.find(' ', first_space + 1);
+    if (second_space == std::string_view::npos)
+        return std::unexpected(RequestParserErr::InvalidHttpErr);
 
-    if (first_space == std::string::npos || second_space == std::string::npos)
-        throw std::invalid_argument("Invalid Http request line");
 
-    method = to_http_method(line.substr(0, first_space));
-    url = line.substr(first_space + 1, second_space - first_space - 1);
-    version = line.substr(second_space + 1);
-    http_request.setMethod(method);
-    http_request.setUrl(url);
-    http_request.setVersion(version);
+    std::string_view method_sv = line.substr(0, first_space);
+
+    std::string_view url_sv = line.substr(first_space + 1, second_space - (first_space + 1));
+
+    std::string_view ver_sv = line.substr(second_space + 1);
+
+
+    http_request.setMethod(stringToHttpMethod(method_sv));
+
+
+    http_request.setUrl(url_sv);
+    http_request.setVersion(ver_sv);
+
+    return {};
 }
-void RequestParser::initHeaders(const std::string &request_head,
-                                HttpRequest &http_request)
+
+void RequestParser::initHeaders(std::string_view request_head, HttpRequest &http_request)
 {
-    std::istringstream stream(request_head);
-    std::string line;
-    while (std::getline(stream, line))
+    size_t pos = 0;
+    size_t end;
+
+    // Skip first line
+    pos = request_head.find("\r\n") + 2;
+
+    while ((end = request_head.find("\r\n", pos)) != std::string_view::npos)
     {
-        trimCR(line);
+        std::string_view line = request_head.substr(pos, end - pos);
         if (line.empty())
-            break; // End of headers
+            break; // found \r\n\r\n
 
-        auto colon_pos = line.find(':');
-        if (colon_pos != std::string::npos)
+
+        if (auto colon = line.find(':'); colon != std::string_view::npos)
         {
-            std::string key = line.substr(0, colon_pos);
-            std::string value = line.substr(colon_pos + 1);
+            std::string_view key = line.substr(0, colon);
+            std::string_view value = line.substr(colon + 1);
 
-            // Trim leading spaces from value
-            size_t start = value.find_first_not_of(' ');
-            if (start != std::string::npos)
-                value.erase(0, start);
+            if (auto first_not_space = value.find_first_not_of(' '); first_not_space != std::string_view::npos)
+            {
+                value.remove_prefix(first_not_space);
+            }
 
-            http_request.setHeader(key, value);
+            if (auto last_not_space = value.find_last_not_of(' '); last_not_space != std::string_view::npos)
+            {
+                value.remove_suffix(value.size() - (last_not_space + 1));
+            }
+
+            http_request.setHeader(std::string(key), std::string(value));
         }
+        pos = end + 2;
     }
 }
+std::expected<void, RequestParserErr> RequestParser::initBody(int client_fd, char *buffer,
+                             const std::string &request_head, std::string &body,
+                             size_t request_head_end) const {
 
-void RequestParser::initBody(int client_fd, char *buffer,
-                             std::string &request_head, std::string &body,
-                             size_t request_head_end)
-{
-    size_t bytes_read = 0;
-    size_t content_length = std::stoul(headers["Content-Length"]);
-    size_t body_start = request_head_end + HeadersEnd.length();
-    size_t body_received = request_head.length() - body_start;
+    size_t content_length = std::stoul(headers.at("Content-Length"));
+
+    size_t body_start_pos = request_head_end + HeadersEnd.length();
+
+    if (body_start_pos < request_head.length())
+    {
+        body = request_head.substr(body_start_pos);
+    }
+
+    size_t body_received = body.length();
 
     while (body_received < content_length)
     {
-        bytes_read =
-            recv(client_fd, buffer,
-                 std::min(sizeof(buffer), content_length - body_received), 0);
+
+        ssize_t bytes_read = recv(client_fd, buffer,
+                                  std::min(static_cast<size_t>(BufferSize), content_length - body_received), 0);
 
         if (bytes_read < 0)
-            throw std::system_error(errno, std::system_category(),
-                                    "Failed to read request body");
-        else if (bytes_read == 0)
-            throw std::runtime_error(
-                "Client closed connection during body transmission");
+            return std::unexpected(RequestParserErr::BodyReadErr);
+        if (bytes_read == 0)
+            break;
 
         body.append(buffer, bytes_read);
         body_received += bytes_read;
     }
+    return {};
 }

@@ -1,8 +1,6 @@
 #ifndef HTTP_REQUEST_H
 #define HTTP_REQUEST_H
 
-#include <sys/socket.h>
-
 #include <filesystem>
 #include <map>
 #include <string>
@@ -11,22 +9,6 @@
 
 class HttpRequest
 {
-public:
-public:
-    HttpRequest(HttpMethod method, const std::string& path,
-                const std::string& headers, const std::string& body = "");
-    HttpMethod getMethod() const { return method; }
-    HttpRequest(const std::string& http_request);
-    HttpRequest(int client_fd);
-    std::filesystem::path getPath() const { return url; }
-    void setMethod(HttpMethod method);
-    void setUrl(const std::string& url);
-    void setVersion(const std::string& version);
-    void setHeader(const std::string& key, const std::string& value);
-
-    std::string getBody() const { return body; }
-
-private:
     HttpMethod method;
     std::filesystem::path url;
     std::string version;
@@ -35,6 +17,24 @@ private:
     static constexpr std::string_view ContentLengthTitle = "Content-Length: ";
     static constexpr std::string_view HeadersEnd = "\r\n\r\n";
     static constexpr size_t BufferSize = 16384;
+public:
+    HttpRequest(HttpMethod method, std::string_view path,
+                std::string_view headers, std::string_view body = "");
+    [[nodiscard]] HttpMethod getMethod() const { return method; }
+    HttpRequest(std::string_view http_request);
+
+    explicit HttpRequest(int client_fd);
+    [[nodiscard]] std::filesystem::path getPath() const { return url; }
+    void setMethod(HttpMethod method);
+    void setUrl(std::string_view url);
+    void setVersion(std::string_view version);
+    void setHeader(std::string_view key, std::string_view value);
+
+    [[nodiscard]] std::string getBody() const { return body; }
+
+
+
+
 };
 
 #endif

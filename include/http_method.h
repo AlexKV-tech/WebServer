@@ -2,6 +2,7 @@
 #define HTTP_METHOD_H
 
 #include <string>
+
 enum class HttpMethod
 {
     GET,
@@ -10,23 +11,18 @@ enum class HttpMethod
     DELETE,
     NONE
 };
-inline std::string to_string(HttpMethod method)
+constexpr std::string_view httpMethodToString(HttpMethod method)
 {
     switch (method)
     {
-    case HttpMethod::GET:
-        return "GET";
-    case HttpMethod::POST:
-        return "POST";
-    case HttpMethod::PUT:
-        return "PUT";
-    case HttpMethod::DELETE:
-        return "DELETE";
-    default:
-        return "";
+        case HttpMethod::GET: return "GET";
+        case HttpMethod::POST: return "POST";
+        case HttpMethod::PUT: return "PUT";
+        case HttpMethod::DELETE: return "DELETE";
+        default: return "UNKNOWN";
     }
 }
-inline HttpMethod to_http_method(const std::string& method)
+inline HttpMethod stringToHttpMethod(std::string_view method)
 {
     if (method == "GET")
         return HttpMethod::GET;
