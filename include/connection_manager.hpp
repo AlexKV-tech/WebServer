@@ -1,21 +1,19 @@
 #ifndef CONNECTION_MANAGER_H
 #define CONNECTION_MANAGER_H
 
+#include <expected>
 #include <memory>
 #include <vector>
-#include <expected>
 
-#include "request_handler.h"
-#include "socket.h"
+#include "path_forwarder.hpp"
+#include "socket.hpp"
 
 enum class ConnectionManagerErr {
     PollErr,
     acceptErr,
 };
 
-class ConnectionManager
-{
-
+class ConnectionManager {
     int family;
     int connection_type;
 
@@ -25,12 +23,12 @@ class ConnectionManager
     static constexpr int ListenerPort = 7777;
     static constexpr int Connections = 100;
 
-    RequestHandler request_handler;
-
-public:
+  public:
     ConnectionManager(int family, int connection_type);
-    std::expected<void, ConnectionManagerErr> pollForEvents(const PathForwarder &path_forwarder);
-private:
+    std::expected<void, ConnectionManagerErr>
+    pollForEvents(const PathForwarder &path_forwarder);
+
+  private:
     [[nodiscard]] sockaddr_in generateLocalAddress() const;
     std::expected<void, ConnectionManagerErr> acceptConnection();
     static void logConnection(const sockaddr_in &client_addr);

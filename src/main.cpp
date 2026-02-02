@@ -1,13 +1,11 @@
 #include <filesystem>
-#include <iostream>
 
-#include "server.h"
+#include "server.hpp"
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
     Server s(AF_INET, SOCK_STREAM);
-    s.setPathMapping(HttpMethod::GET, "/", "static/main.html");
-    s.setPathMapping(HttpMethod::GET, "/favicon.ico", "static/favicon.ico");
+    s.set_path_map(Http::Method::GET, "/", "static/main.html");
+    s.set_path_map(Http::Method::GET, "/favicon.ico", "static/favicon.ico");
     s.run();
 
     return 0;

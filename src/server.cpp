@@ -1,32 +1,28 @@
+#include <iostream>
 #include <utility>
 
-#include "connection_manager.h"
-#include "http_request.h"
-#include "server.h"
+#include "server.hpp"
 
 Server::Server(int family, int connection_type)
-    : connection_manager(family, connection_type), path_forwarder()
-{
-}
+    : connection_manager(family, connection_type), path_forwarder() {}
 
-void Server::run()
-{
-    while (true)
-    {
-        connection_manager.pollForEvents(path_forwarder);
-
+void Server::run() {
+    while (true) {
+        if (!connection_manager.pollForEvents(path_forwarder)) {
+            std::cerr << "Failed to poll for events" << std::endl;
+            break;
+        }
     }
 }
 
-void Server::setPathMapping(HttpMethod method,
-                            const std::filesystem::path &requested_path,
-                            const std::filesystem::path &response_path)
-{
-    path_forwarder.addForwardingRule(method, requested_path, response_path);
+void Server::set_path_map(Http::Method method,
+                          const std::filesystem::path &requested_path,
+                          const std::filesystem::path &response_path) {
+    if (!path_forwarder.add_fwd_rule(method, requested_path, response_path))
+        std::cerr << "Failed to add forwarding rule" << std::endl;
 }
 
-void Server::setPathMapping(const std::map<std::pair<std::string, std::string>,
-                                           std::filesystem::path> &routes)
-{
-    path_forwarder.addForwardingRules(routes);
+void Server::set_path_map(const std::map<std::pair<std::string, std::string>,
+                                         std::filesystem::path> &routes) {
+    path_forwarder.add_fwd_rules(routes);
 }

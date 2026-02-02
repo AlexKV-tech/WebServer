@@ -7,7 +7,7 @@
 !src/*.cpp
 
 !include/
-!include/*.h
+!include/*.hpp
 
 !static/
 !static/*.html

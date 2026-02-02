@@ -1,19 +1,17 @@
 #ifndef SERVER_H
 #define SERVER_H
 
+#include <filesystem>
 #include <map>
 
-#include "connection_manager.h"
-#include "http_method.h"
-#include "http_request.h"
-#include "path_forwarder.h"
+#include "connection_manager.hpp"
+#include "path_forwarder.hpp"
 
-class Server
-{
+class Server {
     ConnectionManager connection_manager;
     PathForwarder path_forwarder;
 
-public:
+  public:
     Server(int family, int connection_type);
     /**
      * @brief Starts the server
@@ -32,13 +30,13 @@ public:
      *
      * @example
      * @code
-     * server.setPathMapping("/", "/computer/project/static/index.html");
-     * server.setPathMapping("/favicon.ico", "./assets/favicon.ico");
+     * server.set_path_map("/", "/computer/project/static/index.html");
+     * server.set_path_map("/favicon.ico", "./assets/favicon.ico");
      * @endcode
      */
-    void setPathMapping(HttpMethod method,
-                        const std::filesystem::path& requested_path,
-                        const std::filesystem::path& response_path);
+    void set_path_map(Http::Method method,
+                      const std::filesystem::path &requested_path,
+                      const std::filesystem::path &response_path);
     /**
      * @brief Maps Http request paths to filesystem locations
      *
@@ -58,8 +56,8 @@ public:
      * server.setFileRoutes(routes);
      * @endcode
      */
-    void setPathMapping(const std::map<std::pair<std::string, std::string>,
-                                       std::filesystem::path>& routes);
+    void set_path_map(const std::map<std::pair<std::string, std::string>,
+                                     std::filesystem::path> &routes);
 };
 
 #endif
