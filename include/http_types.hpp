@@ -46,6 +46,7 @@ struct Request {
     std::string body;
     static constexpr std::string_view CONTENT_LEN_TITLE = "Content-Length: ";
     static constexpr std::string_view HEADERS_END = "\r\n\r\n";
+    static constexpr std::string_view HEADERS_SPACE = "\r\n";
     static constexpr size_t BUF_SIZE = 16384;
 };
 } // namespace Http
