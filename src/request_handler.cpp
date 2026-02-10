@@ -13,7 +13,7 @@ send_response(Http::Method method, const std::filesystem::path &filename,
     size_t total_sent = 0;
     ssize_t current_sent = 0;
     std::string response =
-        Http::generate_response(method, filename, path_forwarder);
+        Http::gen_resp(method, filename, path_forwarder);
     while (total_sent < response.size()) {
         if ((current_sent = send(client_fd, response.c_str(), response.size(),
                                  MSG_NOSIGNAL)) <= 0)

@@ -43,7 +43,7 @@ void Listener::listen_conns(int connections) {
 pollfd Listener::get_poll_cfg() const { return {fd, POLLIN, 0}; }
 
 std::expected<int, ListenerErr>
-Listener::acceptConnection(sockaddr_in &client_address) {
+Listener::accept_conn(sockaddr_in &client_address) {
     socklen_t client_address_size = sizeof(client_address);
     int client_fd =
         accept(this->fd, reinterpret_cast<sockaddr *>(&client_address),

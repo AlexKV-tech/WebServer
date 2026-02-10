@@ -9,7 +9,7 @@
 #include "path_forwarder.hpp"
 
 namespace Http {
-std::string generate_response(Method method,
+std::string gen_resp(Method method,
                               const std::filesystem::path &requested_path,
                               const PathForwarder &path_forwarder);
 std::expected<Request, ParseErr> parse(int fd, Request &http_request);

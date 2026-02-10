@@ -10,18 +10,17 @@
 namespace Http {
 
 std::expected<Request, ParseErr> parse(int fd, Request &http_request) {
-    std::string request_headers{""};
+    std::string headers{""};
     char buffer[Request::BUF_SIZE];
 
     ssize_t bytes_read;
-    size_t request_headers_end = std::string::npos;
+    size_t headers_end = std::string::npos;
 
-    // Phase 1: Read until get request line and all headers (according to
-    // HTTP until \r\n\r\n)
+    // Phase 1: Read headers
     while ((bytes_read = recv(fd, buffer, sizeof(buffer), 0)) > 0) {
-        request_headers.append(buffer, bytes_read);
+        headers.append(buffer, bytes_read);
 
-        if ((request_headers_end = request_headers.find(Request::HEADERS_END)) !=
+        if ((headers_end = headers.find(Request::HEADERS_END)) !=
             std::string::npos)
             break;
     }
@@ -31,20 +30,20 @@ std::expected<Request, ParseErr> parse(int fd, Request &http_request) {
     if (bytes_read < 0) {
         std::cerr << "Connection closed (fd: " << fd << ")\n";
         return std::unexpected(ParseErr::FetchErr);
-    } else if (bytes_read == 0 && request_headers.empty()) {
+    } else if (bytes_read == 0 && headers.empty()) {
         std::cerr << "Connection closed by client (fd: " << fd << ")\n";
         return std::unexpected(ParseErr::PrematureDisconnectionErr);
     }
 
     
-    size_t request_line_end = request_headers.find(Request::HEADERS_SPACE);
+    size_t request_line_end = headers.find(Request::HEADERS_SPACE);
     if (request_line_end == std::string_view::npos) {
         std::cerr << "Invalid HTTP request provided. Note: request lines must be separated by \\r\\n \n";
         return std::unexpected(ParseErr::InvalidHttpErr);
     }
         
-    std::string_view request_headers_sv{request_headers};
-    std::string_view request_line{request_headers_sv.substr(0, request_line_end)};
+    std::string_view headers_sv{headers};
+    std::string_view request_line{headers_sv.substr(0, request_line_end)};
 
     size_t first_space = request_line.find(' ');
     if (first_space == std::string_view::npos) {
@@ -59,7 +58,7 @@ std::expected<Request, ParseErr> parse(int fd, Request &http_request) {
         return std::unexpected(ParseErr::InvalidHttpErr);
     }
         
-
+    // Parse request line
     std::string_view method_sv{request_line.substr(0, first_space)};
 
     std::string_view url_sv{
@@ -75,21 +74,21 @@ std::expected<Request, ParseErr> parse(int fd, Request &http_request) {
     size_t start = 0;
     size_t end;
 
-    // Skip first line
-    start = request_headers_sv.find(Request::HEADERS_SPACE) +
+    // Skip request line
+    start = headers_sv.find(Request::HEADERS_SPACE) +
           Request::HEADERS_SPACE.size();
-    std::string_view request_header_sv;
-    // Read all headers beginning from second line
-    while ((end = request_headers_sv.find(Request::HEADERS_SPACE, start)) !=
+    std::string_view header_field_sv;
+    // Read all header fields beginning from second line
+    while ((end = headers_sv.find(Request::HEADERS_SPACE, start)) !=
            std::string_view::npos) {
-        request_header_sv = request_headers_sv.substr(start, end - start);
-        if (request_header_sv.empty()) {
+        header_field_sv = headers_sv.substr(start, end - start);
+        if (header_field_sv.empty()) {
             break; // encountered \r\n\r\n
         }
              
-        if (auto colon = request_header_sv.find(':'); colon != std::string_view::npos) {
-            std::string_view key{request_header_sv.substr(0, colon)};
-            std::string_view value{request_header_sv.substr(colon + 1)};
+        if (auto colon = header_field_sv.find(':'); colon != std::string_view::npos) {
+            std::string_view key{header_field_sv.substr(0, colon)};
+            std::string_view value{header_field_sv.substr(colon + 1)};
 
             if (auto first_not_space = value.find_first_not_of(' ');
                 first_not_space != std::string_view::npos) {
@@ -116,15 +115,15 @@ std::expected<Request, ParseErr> parse(int fd, Request &http_request) {
     }
         
 
-    size_t body_start_pos = request_headers_end + Request::HEADERS_END.size();
+    size_t body_start_pos = headers_end + Request::HEADERS_END.size();
 
-    if (body_start_pos < request_headers.size()) { // check whether a body was partially read during headers reading
-        http_request.body = request_headers.substr(body_start_pos);
+    if (body_start_pos < headers.size()) { // check whether a body was partially read during headers reading
+        http_request.body = headers.substr(body_start_pos);
         
     }
-
+    // Save number of already read bytes from phase 1
     size_t body_received = http_request.body.size();
-
+    // Phase 2: Read body
     while (body_received < content_length) {
         ssize_t bytes_read =
             recv(fd, buffer,
@@ -147,7 +146,7 @@ std::expected<Request, ParseErr> parse(int fd, Request &http_request) {
     }
     return http_request;
 }
-std::string generate_response(Method method,
+std::string gen_resp(Method method,
                               const std::filesystem::path &requested_path,
                               const PathForwarder &path_forwarder) {
 

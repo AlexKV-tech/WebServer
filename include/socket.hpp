@@ -38,7 +38,7 @@ class Listener : public Socket {
     pollfd get_poll_cfg() const;
 
     std::expected<int, ListenerErr>
-    acceptConnection(sockaddr_in &client_address);
+    accept_conn(sockaddr_in &client_address);
 
   private:
     void enable_addr_reuse();

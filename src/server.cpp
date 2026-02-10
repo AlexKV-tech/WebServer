@@ -8,7 +8,7 @@ Server::Server(int family, int connection_type)
 
 void Server::run() {
     while (true) {
-        if (!connection_manager.pollForEvents(path_forwarder)) {
+        if (!connection_manager.poll_for_events(path_forwarder)) {
             std::cerr << "Failed to poll for events" << std::endl;
             break;
         }
