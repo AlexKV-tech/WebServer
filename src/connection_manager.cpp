@@ -1,8 +1,8 @@
-#include <algorithm>
 #include <arpa/inet.h>
 #include <cstring>
 #include <expected>
 #include <iostream>
+#include <vector>
 
 #include "connection_manager.hpp"
 #include "request_handler.hpp"
@@ -58,34 +58,30 @@ ConnectionManager::poll_for_events(const PathForwarder &path_forwarder) {
         return {};
     }
 
-    std::vector<size_t> to_remove;
+    //std::vector<size_t> to_remove;
 
-    if (fds[0].revents & POLLIN) {
-        if (!accept_conn())
-            return std::unexpected(ConnectionManagerErr::acceptErr);
+    if ((fds[0].revents & POLLIN) && !accept_conn()) {
+        return std::unexpected(ConnectionManagerErr::acceptErr);
     }
 
     for (size_t i = 1; i < fds_cnt; ++i) {
-        if (fds[i].revents == 0)
+        if (!fds[i].revents)
             continue;
 
         size_t client_idx = i - 1;
 
         if (fds[i].revents & (POLLHUP | POLLERR | POLLNVAL)) {
-            to_remove.push_back(client_idx);
-        } else if (fds[i].revents & POLLIN) {
-            if (!RequestHandler::handle(client_sockets[client_idx]->getFd(),
-                                        path_forwarder))
-                to_remove.push_back(client_idx);
+            client_sockets[client_idx]->mark_dead();
+        } else if ((fds[i].revents & POLLIN) &&
+                   !RequestHandler::handle(client_sockets[client_idx]->getFd(),
+                                        path_forwarder)) {
+                client_sockets[client_idx]->mark_dead();
         }
     }
 
-    if (!to_remove.empty()) {
-        std::sort(to_remove.rbegin(), to_remove.rend());
-        for (size_t idx : to_remove) {
-            client_sockets.erase(client_sockets.begin() + idx);
-        }
-    }
+    std::erase_if(client_sockets, [](const auto &socket) {
+        return !socket->is_alive();
+    });
     return {};
 }
 

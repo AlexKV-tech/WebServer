@@ -5,7 +5,7 @@
 #include "socket.hpp"
 
 Socket::Socket(int family, int type, int fd)
-    : family(family), type(type), fd(fd) {
+    : family(family), type(type), fd(fd), alive(true) {
 
     if (fd < 0) {
         throw std::system_error(errno, std::system_category(),

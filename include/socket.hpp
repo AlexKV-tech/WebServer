@@ -15,6 +15,7 @@ class Socket {
     int family;
     int type;
     int fd;
+    bool alive;
 
   public:
     Socket(int family, int type, int fd);
@@ -26,6 +27,8 @@ class Socket {
         : family(other.family), type(other.type), fd(other.fd) {
         other.fd = -1;
     }
+    void mark_dead() { alive = false; }
+    bool is_alive() const { return alive; }
 };
 
 class Listener : public Socket {
